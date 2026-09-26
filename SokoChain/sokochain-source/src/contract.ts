@@ -23,6 +23,10 @@ function requireContractAddress(): `0x${string}` {
 
 export async function connectWallet(): Promise<`0x${string}`> {
   if (!window.ethereum) throw new Error('ไม่พบ Core Wallet');
+
+  const wallet = createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
+  const [account] = await wallet.requestAddresses();
+
   try {
     await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] });
   } catch (error: any) {
@@ -41,8 +45,7 @@ export async function connectWallet(): Promise<`0x${string}`> {
       throw error;
     }
   }
-  const wallet = createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
-  const [account] = await wallet.requestAddresses();
+
   return account;
 }
 
