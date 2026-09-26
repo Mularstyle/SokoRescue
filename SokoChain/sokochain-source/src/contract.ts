@@ -16,13 +16,13 @@ export const publicClient = createPublicClient({ chain: avalancheFuji, transport
 
 function requireContractAddress(): `0x${string}` {
   if (!CONTRACT_ADDRESS || !/^0x[a-fA-F0-9]{40}$/.test(CONTRACT_ADDRESS)) {
-    throw new Error('ยังไม่ได้ตั้งค่า VITE_CONTRACT_ADDRESS');
+    throw new Error('VITE_CONTRACT_ADDRESS is not set');
   }
   return CONTRACT_ADDRESS;
 }
 
 export async function connectWallet(): Promise<`0x${string}`> {
-  if (!window.ethereum) throw new Error('ไม่พบ Core Wallet');
+  if (!window.ethereum) throw new Error('Core Wallet not found');
 
   const wallet = createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
   const [account] = await wallet.requestAddresses();
@@ -50,7 +50,7 @@ export async function connectWallet(): Promise<`0x${string}`> {
 }
 
 export async function submitSolution(levelId: number, moves: readonly Move[], account: `0x${string}`): Promise<`0x${string}`> {
-  if (!window.ethereum) throw new Error('ไม่พบ Core Wallet');
+  if (!window.ethereum) throw new Error('Core Wallet not found');
   const wallet = createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
   return wallet.writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'submitSolution', args: [levelId, [...moves]] });
 }

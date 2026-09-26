@@ -33,9 +33,9 @@ async function refreshScores(): Promise<void> {
   if (!account) return;
   try {
     const scores = await readScores(account, state.levelId);
-    scorePanel.textContent = `ด่าน ${state.levelId}: สถิติของคุณ ${scores.personal || '—'} · สถิติโลก ${scores.global || '—'} ก้าว`;
+    scorePanel.textContent = `Level ${state.levelId}: Your Score ${scores.personal || '—'} · World Record ${scores.global || '—'} moves`;
   } catch {
-    scorePanel.textContent = 'ยังอ่านสถิติจาก Fuji ไม่ได้';
+    scorePanel.textContent = 'Unable to read scores from Fuji';
   }
 }
 
@@ -59,13 +59,13 @@ function render(): void {
   }
   moveCount.textContent = String(state.moves);
   submitButton.disabled = !state.solved;
-  status.textContent = state.solved ? `ภารกิจ ${state.levelId} สำเร็จ! ส่งเสบียงถึงผู้ประสบภัยแล้ว` : `ภารกิจ ${state.levelId}: ขับเรือส่งเสบียงให้ถึงผู้ประสบภัย`;
+  status.textContent = state.solved ? `Mission ${state.levelId} Complete! Supplies delivered` : `Mission ${state.levelId}: Deliver supplies to survivors`;
   renderLevelPicker();
 }
 
 function move(direction: Move): void {
   const next = applyMove(state, direction);
-  if (next === state) status.textContent = 'ทางนี้ไปไม่ได้';
+  if (next === state) status.textContent = 'Path blocked';
   state = next;
   render();
 }
@@ -95,22 +95,22 @@ document.querySelector('#connect-wallet')!.addEventListener('click', async () =>
     await refreshScores();
   } catch (error: any) {
     console.error('Wallet Connection Error:', error);
-    status.textContent = error?.message || 'เชื่อม Wallet ไม่สำเร็จ';
+    status.textContent = error?.message || 'Failed to connect wallet';
   }
 });
 
 submitButton.addEventListener('click', async () => {
   try {
     if (!account) account = await connectWallet();
-    status.textContent = 'กรุณายืนยันธุรกรรมใน Core Wallet…';
+    status.textContent = 'Please confirm transaction in Core Wallet…';
     const hash = await submitSolution(state.levelId, state.history, account);
-    status.textContent = 'กำลังรอ Avalanche ยืนยัน…';
+    status.textContent = 'Waiting for Avalanche confirmation…';
     await publicClient.waitForTransactionReceipt({ hash });
     const scores = await readScores(account, state.levelId);
-    scorePanel.innerHTML = `ด่าน ${state.levelId}: บันทึกแล้ว ${scores.personal} ก้าว · สถิติโลก ${scores.global} ก้าว · <a href="https://subnets-test.avax.network/c-chain/tx/${hash}" target="_blank" rel="noreferrer">ดูธุรกรรม</a>`;
-    status.textContent = 'บันทึกผลบน Fuji สำเร็จ';
+    scorePanel.innerHTML = `Level ${state.levelId}: Saved ${scores.personal} moves · World Record ${scores.global} moves · <a href="https://subnets-test.avax.network/c-chain/tx/${hash}" target="_blank" rel="noreferrer">View Tx</a>`;
+    status.textContent = 'Successfully saved on Fuji';
   } catch (error) {
-    status.textContent = error instanceof Error ? error.message : 'ส่งผลไม่สำเร็จ';
+    status.textContent = error instanceof Error ? error.message : 'Failed to submit';
   }
 });
 
