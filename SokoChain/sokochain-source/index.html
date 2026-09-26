@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#070b18" />
+    <title>SokoRescue</title>
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <div><p class="eyebrow">Flood relief mission · Avalanche Fuji</p><h1>SokoRescue</h1></div>
+        <div class="wallet"><span id="player-name">Rescue Pilot</span><button id="connect-wallet" class="secondary">Connect Core</button><span id="wallet-label">Fuji Testnet</span></div>
+      </header>
+      <nav id="level-select" class="level-select" aria-label="เลือกด่าน"></nav>
+      <section class="game-shell">
+        <div id="board" class="board" aria-label="Sokoban board"></div>
+        <aside class="panel">
+          <div class="stat"><span>ระยะการเดินเรือ</span><strong id="move-count">0</strong></div>
+          <p id="status">ขับเรือส่งเสบียงให้ถึงผู้ประสบภัย</p>
+          <div class="controls" aria-label="Movement controls">
+            <button class="up" data-move="0" aria-label="ขึ้น">▲</button>
+            <button class="left" data-move="3" aria-label="ซ้าย">◀</button>
+            <button data-move="2" aria-label="ลง">▼</button>
+            <button data-move="1" aria-label="ขวา">▶</button>
+          </div>
+          <div class="actions"><button id="reset" class="secondary">เริ่มภารกิจใหม่</button><button id="submit-score" class="primary" disabled>ยืนยันการส่งเสบียง</button></div>
+          <div id="scores"></div>
+          <p class="hint">นำเรือผลักลังเสบียงไปยังจุดช่วยเหลือ การส่งผลใช้ธุรกรรมเดียวหลังภารกิจสำเร็จ</p>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
