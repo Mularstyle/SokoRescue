@@ -23,7 +23,24 @@ function requireContractAddress(): `0x${string}` {
 
 export async function connectWallet(): Promise<`0x${string}`> {
   if (!window.ethereum) throw new Error('ไม่พบ Core Wallet');
-  await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] });
+  try {
+    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] });
+  } catch (error: any) {
+    if (error.code === 4902) {
+      await window.ethereum.request({
+        method: 'wallet_addEthereumChain',
+        params: [{
+          chainId: '0xa869',
+          chainName: 'Avalanche Fuji Testnet',
+          nativeCurrency: { name: 'AVAX', symbol: 'AVAX', decimals: 18 },
+          rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'],
+          blockExplorerUrls: ['https://testnet.snowtrace.io/']
+        }]
+      });
+    } else {
+      throw error;
+    }
+  }
   const wallet = createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
   const [account] = await wallet.requestAddresses();
   return account;

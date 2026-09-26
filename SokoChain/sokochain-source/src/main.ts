@@ -93,8 +93,9 @@ document.querySelector('#connect-wallet')!.addEventListener('click', async () =>
     account = await connectWallet();
     walletLabel.textContent = `${account.slice(0, 6)}…${account.slice(-4)}`;
     await refreshScores();
-  } catch (error) {
-    status.textContent = error instanceof Error ? error.message : 'เชื่อม Wallet ไม่สำเร็จ';
+  } catch (error: any) {
+    console.error('Wallet Connection Error:', error);
+    status.textContent = error?.message || 'เชื่อม Wallet ไม่สำเร็จ';
   }
 });
 
