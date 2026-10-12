@@ -1,43 +1,76 @@
-# SokoChain
+**English** | [ภาษาไทย (Thai version)](README.th.md)
 
-เกม Sokoban แปดด่านสำหรับ Avalanche Fuji ผู้เล่นเลือกด่านได้ทันที แก้เกมใน browser แล้วส่งลำดับการเดินหนึ่งธุรกรรมให้ smart contract ตรวจทุกก้าว สถิติเก็บแยกตาม wallet และด่าน
+<p align="center">
+  <img src="docs/images/logo.png" alt="SokoRescue" width="720">
+</p>
 
-| ด่าน | กล่อง | จำนวนก้าวต่ำสุด |
+# SokoRescue
+
+A flood-rescue puzzle game where every move matters. Steer the rescue boat, push food supplies through flooded streets, and deliver them to the marked rescue points.
+
+SokoRescue was built at [Team1 Thailand — Codebase Hackathon: Chula Edition](https://build.avax.network/events/b6bc9762-afc9-416d-b21e-9795750663d1) and won the **Gaming Track**.
+
+**[Play on Vercel →](https://rescuesoko.vercel.app/)**
+
+![SokoRescue gameplay](docs/images/gameplay.png)
+
+## How does it work?
+
+SokoRescue is a skill-based Sokoban game with eight missions. Pick a level, plan your route, and push every food crate onto a rescue point without trapping it.
+
+Once a mission is complete, the game sends your move sequence to a smart contract on Avalanche Fuji. The contract replays every move, checks that the solution is valid, and saves your best score for that level.
+
+The browser cannot simply claim a high score — the puzzle solution itself is verified on-chain.
+
+## How to play
+
+### 1. Pick a mission
+
+Start with **First Push**, or jump straight into any of the eight levels. The later missions add tighter routes and multi-crate planning.
+
+### 2. Deliver the supplies
+
+Use the arrow keys or the on-screen controls to move the rescue boat. Push every food crate onto a GPS rescue marker. You can restart the mission whenever a crate gets stuck.
+
+### 3. Save your score
+
+Connect Core Wallet on Avalanche Fuji. After solving a mission, confirm one transaction to submit the full move sequence. Your personal best and the level's world record are read back from the contract.
+
+## Missions
+
+| Mission | Crates | Verified minimum |
 | --- | ---: | ---: |
-| 1 — First Push | 1 | 6 |
-| 2 — Around the Pillar | 1 | 15 |
-| 3 — Long Route | 1 | 23 |
-| 4 — Winding Path | 1 | 20 |
-| 5 — Crossroads | 1 | 21 |
-| 6 — Narrow Return | 1 | 21 |
-| 7 — Two-Box Planning | 2 | 41 |
-| 8 — Tight Corners | 2 | 50 |
+| First Push | 1 | 6 moves |
+| Around the Pillar | 1 | 15 moves |
+| Long Route | 1 | 23 moves |
+| Winding Path | 1 | 20 moves |
+| Crossroads | 1 | 21 moves |
+| Narrow Return | 1 | 21 moves |
+| Two-Box Planning | 2 | 41 moves |
+| Tight Corners | 2 | 50 moves |
 
-## รันในเครื่อง
+## Run locally
 
-```bash
+Requires Node.js and npm.
+
+```sh
 npm install
 copy .env.example .env
 npm run dev
 ```
 
-ก่อนเปิดการส่งคะแนน ให้แก้ `VITE_CONTRACT_ADDRESS` ใน `.env` เป็น address ที่ deploy จริงบน Fuji
+Set `VITE_CONTRACT_ADDRESS` in `.env` to the deployed `SokoChain` contract on Avalanche Fuji before submitting scores.
 
-## Deploy contract ด้วย Remix
+Run the checks with:
 
-1. เปิด `contracts/SokoChain.sol` ใน Remix และตั้ง Solidity compiler เป็น `0.8.30` พร้อม EVM Version `cancun`.
-2. รัน `contracts/SokoChain_test.sol` ผ่าน Solidity Unit Testing plugin.
-3. เชื่อม Core Wallet ที่อยู่บน Avalanche Fuji C-Chain แล้ว deploy `SokoChain`.
-4. ใส่ contract address ใหม่ใน `.env` แล้วรัน `npm run build` ใหม่. Contract V2 ใช้ `submitSolution(levelId, moves)` จึงใช้ address ของ V1 ไม่ได้.
+```sh
+npm test
+npm run build
+```
 
-## เผยแพร่บน Vercel
+Built with TypeScript, Vite, viem, Solidity, Core Wallet, and Avalanche Fuji.
 
-คุณสามารถ deploy โปรเจกต์นี้ขึ้น Vercel ได้โดยตรง:
-1. Push code ขึ้น GitHub repository
-2. Import repository ใน Vercel
-3. ตั้ง environment variable \`VITE_CONTRACT_ADDRESS\`
-4. Deploy ผ่าน Vercel (รองรับ HTTPS และเชื่อมต่อ Core Wallet ได้โดยตรง)
+## Credits
 
-## Attribution
+Levels 7 and 8 are adapted from David W. Skinner's public-domain Microban puzzle collection.
 
-ด่าน 7 และ 8 ดัดแปลงจากชุดด่าน Microban ของ David W. Skinner ซึ่งเผยแพร่เป็น public domain.
