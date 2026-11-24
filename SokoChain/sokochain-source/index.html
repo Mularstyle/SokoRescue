@@ -1,35 +1,135 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#070b18" />
-    <title>SokoRescue</title>
+    <meta name="theme-color" content="#0a0306" />
+    <title>SokoRescue — Flood Relief Puzzle Bounties</title>
   </head>
   <body>
-    <main class="app">
-      <header>
-        <div><p class="eyebrow">Flood relief mission · Avalanche Fuji</p><h1>SokoRescue</h1></div>
-        <div class="wallet"><span id="player-name">Rescue Pilot</span><button id="connect-wallet" class="secondary">Connect Core</button><span id="wallet-label">Fuji Testnet</span></div>
-      </header>
-      <nav id="level-select" class="level-select" aria-label="Select Level"></nav>
-      <section class="game-shell">
-        <div id="board" class="board" aria-label="Sokoban board"></div>
-        <aside class="panel">
-          <div class="stat"><span>Moves</span><strong id="move-count">0</strong></div>
-          <p id="status">Deliver supplies to survivors</p>
-          <div class="controls" aria-label="Movement controls">
-            <button class="up" data-move="0" aria-label="Up">▲</button>
-            <button class="left" data-move="3" aria-label="Left">◀</button>
-            <button data-move="2" aria-label="Down">▼</button>
-            <button data-move="1" aria-label="Right">▶</button>
+    <div class="sky" aria-hidden="true">
+      <span class="cloud c1"></span><span class="cloud c2"></span><span class="cloud c3"></span><span class="cloud c4"></span>
+      <div class="rain"></div>
+    </div>
+
+    <header class="topbar">
+      <a class="logo" href="#top" aria-label="SokoRescue home"><span class="logo-icon"></span><span class="logo-text">Soko<b>Rescue</b></span></a>
+      <nav class="topnav" aria-label="Sections">
+        <a href="#play">Play</a>
+        <a href="#bounties">Bounties</a>
+        <a href="#how">How it works</a>
+      </nav>
+      <div class="wallet">
+        <span id="wallet-label" class="wallet-label">Fuji Testnet</span>
+        <button id="connect-wallet" class="btn btn-ghost">Connect Core</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow"><span class="blink">●</span> Flood relief ops · Avalanche Fuji</p>
+        <h1 class="hero-title"><span>Soko</span><span class="red">Rescue</span></h1>
+        <p class="hero-sub">Push supply crates through a flooded city.<br />Post AVAX bounties. Claim them with proofs the chain checks.</p>
+        <div class="hero-cta">
+          <a class="btn btn-red" href="#play">Start mission</a>
+          <a class="btn btn-ghost" href="#bounties">Browse bounties</a>
+        </div>
+        <div class="hero-scene" aria-hidden="true">
+          <div class="skyline"></div>
+          <div class="hero-boat"></div>
+          <div class="waves"></div>
+        </div>
+      </section>
+
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span>Flood alert</span><i></i><span>8 districts underwater</span><i></i><span>AVAX rewards held in escrow by contract</span><i></i><span>Commit · Reveal · Get paid</span><i></i><span>No copy-paste winners</span><i></i>
+          <span>Flood alert</span><i></i><span>8 districts underwater</span><i></i><span>AVAX rewards held in escrow by contract</span><i></i><span>Commit · Reveal · Get paid</span><i></i><span>No copy-paste winners</span><i></i>
+        </div>
+      </div>
+
+      <section id="play" class="section">
+        <div class="section-head">
+          <p class="kicker">Mission board</p>
+          <h2>Deliver the <span class="red">supplies.</span></h2>
+          <p class="lead">Steer the rescue boat. Push every crate onto a life ring. The contract replays your route move by move.</p>
+        </div>
+
+        <nav id="level-select" class="level-select" aria-label="Select level"></nav>
+
+        <div class="game-shell">
+          <div class="board-frame px-box">
+            <div id="active-bounty" class="active-bounty" hidden></div>
+            <div id="board" class="board" aria-label="Sokoban board"></div>
           </div>
-          <div class="actions"><button id="reset" class="secondary">Restart Mission</button><button id="submit-score" class="primary" disabled>Confirm Delivery</button></div>
-          <div id="scores"></div>
-          <p class="hint">Push supply crates to rescue points. Submit results using a single transaction once the mission is complete.</p>
-        </aside>
+
+          <aside class="panel px-box">
+            <p class="panel-tag">Rescue log</p>
+            <div class="stat"><span>Moves</span><strong id="move-count">0</strong></div>
+            <p id="status" role="status">Deliver supplies to survivors</p>
+            <div class="controls" aria-label="Movement controls">
+              <button class="up" data-move="0" aria-label="Up">▲</button>
+              <button class="left" data-move="3" aria-label="Left">◀</button>
+              <button data-move="2" aria-label="Down">▼</button>
+              <button data-move="1" aria-label="Right">▶</button>
+            </div>
+            <div class="actions">
+              <button id="reset" class="btn btn-ghost">Restart</button>
+              <button id="submit-score" class="btn btn-ghost" disabled>Log score</button>
+            </div>
+            <div id="bounty-actions" class="bounty-actions"></div>
+            <div id="scores" class="scores"></div>
+            <p class="hint">Arrow keys or the pad. “Log score” writes to the classic leaderboard; bounties pay real (test) AVAX.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="bounties" class="section">
+        <div class="section-head">
+          <p class="kicker">Puzzle bounties</p>
+          <h2>Solve first. <span class="red">Claim AVAX.</span></h2>
+          <p class="lead">Anyone can lock AVAX on a district. The first player to prove a valid route gets paid by the contract — no organiser, no trust.</p>
+        </div>
+
+        <div class="bounty-layout">
+          <form id="create-bounty" class="create-card px-box">
+            <p class="panel-tag">Post a bounty</p>
+            <p class="create-level">District <strong id="create-level">1</strong> <span id="create-level-name"></span></p>
+            <label>Reward (AVAX)<input id="bounty-reward" type="number" min="0.001" step="0.001" value="0.05" required /></label>
+            <label>Open for (hours)<input id="bounty-hours" type="number" min="1" max="720" step="1" value="24" required /></label>
+            <button id="create-bounty-btn" class="btn btn-red" type="submit" disabled>Solve this district first</button>
+            <p class="warn">Your winning route + secret salt are saved <b>only in this browser</b>. Clear site data and you can’t reclaim an unsolved bounty.</p>
+          </form>
+
+          <div class="bounty-board">
+            <div class="bounty-board-head">
+              <p class="panel-tag inline">Open bounties</p>
+              <button id="refresh-bounties" class="btn btn-ghost btn-sm" type="button">Refresh</button>
+            </div>
+            <div id="bounty-list" class="bounty-list"><p class="empty">Loading bounties from Fuji…</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="section">
+        <div class="section-head">
+          <p class="kicker">Why a blockchain</p>
+          <h2>Copy-proof <span class="red">claims.</span></h2>
+        </div>
+        <ol class="steps">
+          <li class="step px-box"><span class="step-no">01</span><h3>Commit</h3><p>Send only <code>hash(route, salt, you)</code>. Nobody can read or reuse your answer.</p></li>
+          <li class="step px-box"><span class="step-no">02</span><h3>Reveal</h3><p>One block later, reveal the route. The hash is bound to your wallet, so a copy from the mempool fails.</p></li>
+          <li class="step px-box"><span class="step-no">03</span><h3>Paid</h3><p>The contract replays every move. Valid? The escrowed AVAX goes straight to you.</p></li>
+        </ol>
       </section>
     </main>
+
+    <footer class="footer">
+      <p class="ghost-text" aria-hidden="true">STAY<br />AFLOAT</p>
+      <p class="footer-line">SokoRescue · built on Avalanche Fuji testnet · Team1 Builders Demo Day</p>
+      <div class="waves footer-waves" aria-hidden="true"></div>
+    </footer>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
