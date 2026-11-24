@@ -32,6 +32,8 @@ Pick the network from the selector in the top bar (or open the site with `?netwo
 | Avalanche C-Chain (mainnet) | 43114 | [`0x1048715d77C9532E2Ed631D09859e090cB23d01D`](https://snowtrace.io/address/0x1048715d77C9532E2Ed631D09859e090cB23d01D) |
 
 > **Mainnet uses real AVAX.** The contract is unaudited. Try everything on Fuji first.
+>
+> **Known limitation:** the first valid reveal wins. Anyone who already knows a solution — including the bounty creator using a second wallet — can race your reveal and get theirs mined first. Keep mainnet rewards small.
 
 ## How to play
 
@@ -59,13 +61,13 @@ Bounties on the eight preset districts are only offered on Fuji, because their s
 
 ### Claim a bounty (commit-reveal)
 
-1. **Commit** — send only `hash(route, salt, your address)`. Nobody can read or reuse your answer.
+1. **Commit** — send only `hash(route, salt, your address, bounty id)`. Nobody can read or reuse your answer.
 2. **Reveal** — one block later, reveal the route. The hash is bound to your wallet, so a copy taken from the mempool fails.
 3. **Paid** — the contract replays every move. If it is valid and the bounty is still open, the escrowed AVAX goes straight to you.
 
 ### Reclaim an unsolved bounty
 
-If nobody solves it before the deadline, the creator gets the reward back by revealing the solution committed at creation — proof that the map was solvable.
+If nobody solves it before the deadline, the creator gets the reward back by revealing the solution committed at creation — proof that the map was solvable. If that solution does not solve the map, or the answer backup is lost, the reward stays locked in the contract forever.
 
 ### Back up your answers
 
