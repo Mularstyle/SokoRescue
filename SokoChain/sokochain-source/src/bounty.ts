@@ -30,7 +30,10 @@ export function randomSalt(): Hex {
 }
 
 const creatorKey = (commitHash: Hex) => `sokorescue:creator:${commitHash.toLowerCase()}`;
-const solverKey = (account: Hex, bountyId: bigint) => `sokorescue:solver:${account.toLowerCase()}:${bountyId}`;
+const FUJI_CHAIN_ID = 43113;
+const solverKey = (account: Hex, bountyId: bigint, chainId: number) => `sokorescue:solver:${chainId}:${account.toLowerCase()}:${bountyId}`;
+/** Fuji answers saved before secrets were namespaced by chain. */
+const legacySolverKey = (account: Hex, bountyId: bigint) => `sokorescue:solver:${account.toLowerCase()}:${bountyId}`;
 
 function readJson<T>(key: string): T | null {
   try {
@@ -49,12 +52,13 @@ export function loadCreatorSecret(commitHash: Hex): CreatorSecret | null {
   return readJson<CreatorSecret>(creatorKey(commitHash));
 }
 
-export function saveSolverSecret(account: Hex, bountyId: bigint, secret: SolverSecret): void {
-  localStorage.setItem(solverKey(account, bountyId), JSON.stringify(secret));
+export function saveSolverSecret(account: Hex, bountyId: bigint, secret: SolverSecret, chainId: number): void {
+  localStorage.setItem(solverKey(account, bountyId, chainId), JSON.stringify(secret));
 }
 
-export function loadSolverSecret(account: Hex, bountyId: bigint): SolverSecret | null {
-  return readJson<SolverSecret>(solverKey(account, bountyId));
+export function loadSolverSecret(account: Hex, bountyId: bigint, chainId: number): SolverSecret | null {
+  return readJson<SolverSecret>(solverKey(account, bountyId, chainId))
+    ?? (chainId === FUJI_CHAIN_ID ? readJson<SolverSecret>(legacySolverKey(account, bountyId)) : null);
 }
 
 export type BountyStatus = 'open' | 'expired' | 'solved' | 'reclaimed';
@@ -64,4 +68,51 @@ export function bountyStatus(bounty: { deadline: bigint; solved: boolean; reclai
   if (bounty.solved) return 'solved';
   if (bounty.reclaimed) return 'reclaimed';
   return now <= bounty.deadline ? 'open' : 'expired';
+}
+
+// ---------------------------------------------------------------------------
+// Backup / restore of answers (salts + routes). Without them a commit can't be
+// revealed and an unsolved bounty can't be reclaimed.
+// ---------------------------------------------------------------------------
+
+const BACKUP_APP = 'sokorescue-answers';
+const SECRET_PREFIXES = ['sokorescue:creator:', 'sokorescue:solver:'];
+const isSecretKey = (key: string) => SECRET_PREFIXES.some((prefix) => key.startsWith(prefix));
+
+function isValidSecret(value: unknown): value is SolverSecret {
+  if (typeof value !== 'object' || value === null) return false;
+  const { moves, salt } = value as { moves?: unknown; salt?: unknown };
+  return typeof salt === 'string' && /^0x[0-9a-fA-F]{64}$/.test(salt)
+    && Array.isArray(moves) && moves.length <= 400
+    && moves.every((move) => Number.isInteger(move) && move >= 0 && move <= 3);
+}
+
+export function exportSecrets(): string {
+  const entries: Record<string, unknown> = {};
+  for (let index = 0; index < localStorage.length; index++) {
+    const key = localStorage.key(index);
+    if (!key || !isSecretKey(key)) continue;
+    const value = readJson<unknown>(key);
+    if (isValidSecret(value)) entries[key] = value;
+  }
+  return JSON.stringify({ app: BACKUP_APP, version: 1, exportedAt: new Date().toISOString(), entries }, null, 2);
+}
+
+/** Validates the whole file first, then adds answers that are not already stored. Returns how many were added. */
+export function importSecrets(text: string): number {
+  const backup = JSON.parse(text) as { app?: unknown; entries?: unknown };
+  if (backup?.app !== BACKUP_APP || typeof backup.entries !== 'object' || backup.entries === null) {
+    throw new Error('Not a SokoRescue answer backup');
+  }
+  const entries = Object.entries(backup.entries as Record<string, unknown>);
+  for (const [key, value] of entries) {
+    if (!isSecretKey(key) || !isValidSecret(value)) throw new Error(`Invalid entry in backup: ${key}`);
+  }
+  let added = 0;
+  for (const [key, value] of entries) {
+    if (localStorage.getItem(key) !== null) continue;
+    localStorage.setItem(key, JSON.stringify(value));
+    added++;
+  }
+  return added;
 }

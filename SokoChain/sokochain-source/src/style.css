@@ -34,7 +34,7 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 96px; }
+html { scroll-behavior: smooth; scroll-padding-top: 96px; overflow-x: clip; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -145,10 +145,29 @@ button, input { font: inherit; }
 .logo-text { font-family: var(--display); font-size: 16px; }
 .logo-text b { color: var(--hot); font-weight: 400; }
 .topnav { display: flex; gap: 32px; }
-.topnav a { font-family: var(--label); font-size: 16px; color: var(--ash); text-decoration: none; text-transform: uppercase; }
+.topnav a { font-family: var(--label); font-size: 16px; color: var(--ash); text-decoration: none; text-transform: uppercase; white-space: nowrap; }
+.wallet-label:empty { display: none; }
 .topnav a:hover { color: var(--bone); }
 .wallet { display: flex; align-items: center; gap: 20px; }
 .wallet-label { font-family: var(--label); font-size: 16px; color: var(--glow); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.network-select {
+  appearance: none;
+  padding: 6px 32px 6px 12px;
+  border: 0;
+  background: var(--night) linear-gradient(45deg, transparent 50%, var(--glow) 50%) no-repeat right 14px center / 8px 8px;
+  color: var(--bone);
+  font-family: var(--label);
+  font-size: 16px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 -4px 0 0 var(--deep), 0 4px 0 0 var(--deep), -4px 0 0 0 var(--deep), 4px 0 0 0 var(--deep);
+}
+.network-select:focus-visible { outline: 4px solid var(--glow); outline-offset: 6px; }
+.network-select option { background: var(--ink); color: var(--bone); }
+.net-mainnet .network-select { background-color: var(--red); box-shadow: 0 -4px 0 0 var(--hot), 0 4px 0 0 var(--hot), -4px 0 0 0 var(--hot), 4px 0 0 0 var(--hot); }
+.net-mainnet .topbar { border-bottom-color: var(--hot); }
+.warn.warn-mainnet { background: var(--red); color: var(--bone); box-shadow: inset 4px 0 0 var(--glow); }
 
 /* ---------- hero ---------- */
 main { display: block; }
@@ -377,6 +396,8 @@ h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; 
 .editor-status.bad { color: var(--coral); }
 .workshop-actions { display: flex; gap: 24px; align-items: center; }
 .create-hint { margin: 0; }
+.backup-row { display: flex; flex-wrap: wrap; gap: 20px; }
+.backup-row .btn { flex: 1 1 auto; }
 .bounty-tag { margin-left: 8px; padding: 2px 6px; background: var(--glow); color: var(--ink); font-family: var(--label); font-size: 16px; }
 
 /* ---------- how it works ---------- */
@@ -426,7 +447,11 @@ h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; 
 }
 @media (max-width: 640px) {
   :root { --tile: 32px; font-size: 22px; }
-  .topbar { padding: 10px 16px; }
+  .topbar { padding: 10px 12px; gap: 10px 12px; flex-wrap: wrap; }
+  .wallet { flex: 1 1 auto; justify-content: flex-end; }
+  .wallet { gap: 12px; }
+  .wallet .btn { padding: 8px 10px; }
+  .network-select { padding: 6px 28px 6px 10px; background-position: right 10px center; }
   .logo-text { display: none; }
   .hero { padding-top: 56px; }
   .hero-title { font-size: 32px; }

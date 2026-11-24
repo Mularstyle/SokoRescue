@@ -20,14 +20,15 @@
         <a href="#how">How it works</a>
       </nav>
       <div class="wallet">
-        <span id="wallet-label" class="wallet-label">Fuji Testnet</span>
+        <label class="network"><span class="sr-only">Network</span><select id="network-select" class="network-select" aria-label="Network"></select></label>
+        <span id="wallet-label" class="wallet-label"></span>
         <button id="connect-wallet" class="btn btn-ghost">Connect Core</button>
       </div>
     </header>
 
     <main id="top">
       <section class="hero">
-        <p class="eyebrow"><span class="blink">●</span> Flood relief ops · Avalanche Fuji</p>
+        <p class="eyebrow"><span class="blink">●</span> Flood relief ops · <span id="network-eyebrow">Avalanche Fuji testnet</span></p>
         <h1 class="hero-title"><span>Soko</span><span class="red">Rescue</span></h1>
         <p class="hero-sub">Push supply crates through a flooded city.<br />Post AVAX bounties. Claim them with proofs the chain checks.</p>
         <div class="hero-cta">
@@ -125,7 +126,13 @@
             <label>Open for (hours)<input id="bounty-hours" type="number" min="1" max="720" step="1" value="24" required /></label>
             <button id="create-bounty-btn" class="btn btn-red" type="submit" disabled>Solve this district first</button>
             <p class="hint create-hint">Solve a preset district or test-play your workshop map, then post.</p>
-            <p class="warn">Your winning route + secret salt are saved <b>only in this browser</b>. Clear site data and you can’t reclaim an unsolved bounty.</p>
+            <p id="mainnet-warn" class="warn warn-mainnet" hidden><b>Mainnet:</b> the reward is real AVAX locked in an unaudited contract. If nobody solves it you only get it back by reclaiming from this browser.</p>
+            <p class="warn">Your winning route + secret salt are saved <b>only in this browser</b>. Clear site data and you can’t reveal or reclaim. Keep a backup file.</p>
+            <div class="backup-row">
+              <button id="backup-export" type="button" class="btn btn-ghost btn-sm">Back up answers</button>
+              <label class="btn btn-ghost btn-sm" for="backup-import">Restore</label>
+              <input id="backup-import" type="file" accept="application/json,.json" hidden />
+            </div>
           </form>
 
           <div class="bounty-board">
@@ -133,7 +140,7 @@
               <p class="panel-tag inline">Open bounties</p>
               <button id="refresh-bounties" class="btn btn-ghost btn-sm" type="button">Refresh</button>
             </div>
-            <div id="bounty-list" class="bounty-list"><p class="empty">Loading bounties from Fuji…</p></div>
+            <div id="bounty-list" class="bounty-list"><p class="empty">Loading bounties…</p></div>
           </div>
         </div>
       </section>
@@ -153,7 +160,7 @@
 
     <footer class="footer">
       <p class="ghost-text" aria-hidden="true">STAY<br />AFLOAT</p>
-      <p class="footer-line">SokoRescue · built on Avalanche Fuji testnet · Team1 Builders Demo Day</p>
+      <p class="footer-line">SokoRescue · built on Avalanche · Team1 Builders Demo Day</p>
       <div class="waves footer-waves" aria-hidden="true"></div>
     </footer>
 
