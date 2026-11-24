@@ -1,9 +1,8 @@
-import { createPublicClient, createWalletClient, custom, http, parseEventLogs, type Hex, type TransactionReceipt } from 'viem';
-import { avalancheFuji } from 'viem/chains';
+import { createPublicClient, createWalletClient, custom, http, parseEventLogs, type Hex, type PublicClient, type TransactionReceipt } from 'viem';
+import { NETWORKS, type Network, type NetworkId } from './networks';
 import type { Move } from './game';
 import type { OnchainLevel } from './levelCodec';
 
-export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as `0x${string}` | undefined;
 
 export const ABI = [
   { type: 'function', name: 'submitSolution', stateMutability: 'nonpayable', inputs: [{ name: 'levelId', type: 'uint8' }, { name: 'moves', type: 'uint8[]' }], outputs: [] },
@@ -46,52 +45,61 @@ export const ABI = [
   { type: 'event', name: 'BountyCreated', anonymous: false, inputs: [{ name: 'bountyId', type: 'uint256', indexed: true }, { name: 'creator', type: 'address', indexed: true }, { name: 'levelId', type: 'uint8', indexed: true }, { name: 'reward', type: 'uint256', indexed: false }, { name: 'deadline', type: 'uint64', indexed: false }] },
 ] as const;
 
-export const publicClient = createPublicClient({ chain: avalancheFuji, transport: http() });
+// --- Network ----------------------------------------------------------------
+// Live bindings: importers always see the current network, client and explorer.
+
+export let network: Network = NETWORKS.fuji;
+export let publicClient: PublicClient = createPublicClient({ chain: network.chain, transport: http() }) as PublicClient;
+export let EXPLORER_TX = `${network.explorer}/tx/`;
+
+export function setNetwork(id: NetworkId): void {
+  network = NETWORKS[id];
+  publicClient = createPublicClient({ chain: network.chain, transport: http() }) as PublicClient;
+  EXPLORER_TX = `${network.explorer}/tx/`;
+}
 
 function requireContractAddress(): `0x${string}` {
-  if (!CONTRACT_ADDRESS || !/^0x[a-fA-F0-9]{40}$/.test(CONTRACT_ADDRESS)) {
-    throw new Error('VITE_CONTRACT_ADDRESS is not set');
+  if (!network.contract) throw new Error(`No SokoChain contract configured for ${network.label}`);
+  return network.contract;
+}
+
+/** Ask the wallet to switch to the selected network, adding it first if the wallet doesn't know it. */
+async function switchWalletChain(): Promise<void> {
+  if (!window.ethereum) throw new Error('Core Wallet not found');
+  const chainId = `0x${network.chainId.toString(16)}`;
+  try {
+    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId }] });
+  } catch (error: any) {
+    if (error?.code !== 4902) throw error;
+    await window.ethereum.request({
+      method: 'wallet_addEthereumChain',
+      params: [{
+        chainId,
+        chainName: network.testnet ? 'Avalanche Fuji Testnet' : 'Avalanche C-Chain',
+        nativeCurrency: { name: 'AVAX', symbol: 'AVAX', decimals: 18 },
+        rpcUrls: [network.rpcUrl],
+        blockExplorerUrls: [`${network.explorer}/`],
+      }],
+    });
   }
-  return CONTRACT_ADDRESS;
 }
 
 export async function connectWallet(): Promise<`0x${string}`> {
   if (!window.ethereum) throw new Error('Core Wallet not found');
-
-  const wallet = createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
+  const wallet = createWalletClient({ chain: network.chain, transport: custom(window.ethereum) });
   const [account] = await wallet.requestAddresses();
-
-  try {
-    await window.ethereum.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0xa869' }] });
-  } catch (error: any) {
-    if (error.code === 4902) {
-      await window.ethereum.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: '0xa869',
-          chainName: 'Avalanche Fuji Testnet',
-          nativeCurrency: { name: 'AVAX', symbol: 'AVAX', decimals: 18 },
-          rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc'],
-          blockExplorerUrls: ['https://testnet.snowtrace.io/']
-        }]
-      });
-    } else {
-      throw error;
-    }
-  }
-
+  await switchWalletChain();
   return account;
 }
 
-export const EXPLORER_TX = 'https://testnet.snowtrace.io/tx/';
-
-function walletClient() {
-  if (!window.ethereum) throw new Error('Core Wallet not found');
-  return createWalletClient({ chain: avalancheFuji, transport: custom(window.ethereum) });
+/** Wallet client on the selected network; switches the wallet first so a tx never lands on the wrong chain. */
+async function walletClient() {
+  await switchWalletChain();
+  return createWalletClient({ chain: network.chain, transport: custom(window.ethereum!) });
 }
 
 export async function submitSolution(levelId: number, moves: readonly Move[], account: `0x${string}`): Promise<`0x${string}`> {
-  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'submitSolution', args: [levelId, [...moves]] });
+  return (await walletClient()).writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'submitSolution', args: [levelId, [...moves]] });
 }
 
 // --- Puzzle Bounty -----------------------------------------------------------
@@ -121,11 +129,11 @@ export async function chainTime(): Promise<bigint> {
 }
 
 export async function createBounty(levelId: number, creatorCommit: Hex, deadline: bigint, reward: bigint, account: Hex): Promise<Hex> {
-  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'createBounty', args: [levelId, creatorCommit, deadline], value: reward });
+  return (await walletClient()).writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'createBounty', args: [levelId, creatorCommit, deadline], value: reward });
 }
 
 export async function createCustomBounty(level: OnchainLevel, creatorCommit: Hex, deadline: bigint, reward: bigint, account: Hex): Promise<Hex> {
-  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'createCustomBounty', args: [level, creatorCommit, deadline], value: reward });
+  return (await walletClient()).writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'createCustomBounty', args: [level, creatorCommit, deadline], value: reward });
 }
 
 export async function readBountyLevel(bountyId: bigint): Promise<OnchainLevel> {
@@ -133,15 +141,15 @@ export async function readBountyLevel(bountyId: bigint): Promise<OnchainLevel> {
 }
 
 export async function commitAnswer(bountyId: bigint, commitHash: Hex, account: Hex): Promise<Hex> {
-  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'commit', args: [bountyId, commitHash] });
+  return (await walletClient()).writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'commit', args: [bountyId, commitHash] });
 }
 
 export async function revealAnswer(bountyId: bigint, moves: readonly number[], salt: Hex, account: Hex): Promise<Hex> {
-  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'reveal', args: [bountyId, [...moves], salt] });
+  return (await walletClient()).writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'reveal', args: [bountyId, [...moves], salt] });
 }
 
 export async function reclaimBounty(bountyId: bigint, moves: readonly number[], salt: Hex, account: Hex): Promise<Hex> {
-  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'reclaim', args: [bountyId, [...moves], salt] });
+  return (await walletClient()).writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'reclaim', args: [bountyId, [...moves], salt] });
 }
 
 export function bountyIdFromReceipt(receipt: TransactionReceipt): bigint | null {

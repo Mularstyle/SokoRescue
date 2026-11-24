@@ -23,9 +23,9 @@ describe('bounty secrets in localStorage', () => {
   });
 
   it('round-trips the solver secret per account and bounty, ignoring address case', () => {
-    saveSolverSecret(ALICE, 7n, { moves: [3, 3], salt: SALT });
-    expect(loadSolverSecret(ALICE.toLowerCase() as `0x${string}`, 7n)).toEqual({ moves: [3, 3], salt: SALT });
-    expect(loadSolverSecret(ALICE, 8n)).toBeNull();
+    saveSolverSecret(ALICE, 7n, { moves: [3, 3], salt: SALT }, 43113);
+    expect(loadSolverSecret(ALICE.toLowerCase() as `0x${string}`, 7n, 43113)).toEqual({ moves: [3, 3], salt: SALT });
+    expect(loadSolverSecret(ALICE, 8n, 43113)).toBeNull();
   });
 
   it('returns null for missing or corrupt entries', () => {

@@ -15,6 +15,8 @@ import {
   createBounty,
   createCustomBounty,
   listBounties,
+  network,
+  setNetwork,
   publicClient,
   readBountyLevel,
   readCommitment,
@@ -28,6 +30,8 @@ import {
 import {
   bountyStatus,
   creatorCommitHash,
+  exportSecrets,
+  importSecrets,
   loadCreatorSecret,
   loadSolverSecret,
   randomSalt,
@@ -36,6 +40,7 @@ import {
   solverCommitHash,
 } from './bounty';
 import { installSprites } from './sprites';
+import { NETWORKS, allowsPresetBounties, resolveNetwork, type NetworkId } from './networks';
 import { floodTileClasses } from './theme';
 
 installSprites();
@@ -65,6 +70,10 @@ const createButton = $<HTMLButtonElement>('#create-bounty-btn');
 const createLevel = $('#create-level');
 const createLevelName = $('#create-level-name');
 const createLevelKind = $('#create-level-kind');
+const networkSelect = $<HTMLSelectElement>('#network-select');
+const networkEyebrow = $('#network-eyebrow');
+const mainnetWarn = $('#mainnet-warn');
+const NETWORK_KEY = 'sokorescue:network';
 const editor = $<HTMLDivElement>('#editor');
 const editorStatus = $('#editor-status');
 const editorWidth = $<HTMLInputElement>('#editor-width');
@@ -222,12 +231,15 @@ function render(): void {
       ? `${label} secured in ${state.moves} moves!`
       : `${label}: push every crate onto a life ring.`);
   }
-  const postable = activeBountyId === null && (isPreset(state.levelId) || state.levelId === DRAFT_ID);
+  const presetBlocked = isPreset(state.levelId) && !allowsPresetBounties(network);
+  const postable = activeBountyId === null && !presetBlocked && (isPreset(state.levelId) || state.levelId === DRAFT_ID);
   createLevelKind.textContent = isPreset(state.levelId) ? 'District' : 'Map';
   createLevel.textContent = isPreset(state.levelId) ? String(state.levelId) : `${level.width}×${level.height}`;
   createLevelName.textContent = level.name;
   createButton.disabled = !state.solved || !postable;
-  createButton.textContent = !postable
+  createButton.textContent = presetBlocked
+    ? 'Mainnet: post on a custom map'
+    : !postable
     ? 'Leave bounty mode to post'
     : !state.solved ? 'Solve this map first'
     : state.levelId === DRAFT_ID ? 'Post bounty on your map' : `Post bounty on district ${state.levelId}`;
@@ -275,7 +287,7 @@ function renderBountyActions(): void {
     bountyActions.replaceChildren();
     return;
   }
-  const secret = account ? loadSolverSecret(account, bounty.id) : null;
+  const secret = account ? loadSolverSecret(account, bounty.id, network.chainId) : null;
   const children: HTMLElement[] = [];
   if (bountyStatus(bounty, now) !== 'open') {
     const note = document.createElement('p');
@@ -297,17 +309,18 @@ async function commitActive(): Promise<void> {
   await withTx('Commit', async (from) => {
     const salt = randomSalt();
     // Save BEFORE sending: if the tab dies after the tx, the answer is still recoverable.
-    saveSolverSecret(from, bounty.id, { moves, salt });
+    saveSolverSecret(from, bounty.id, { moves, salt }, network.chainId);
     const hash = await commitAnswer(bounty.id, solverCommitHash(moves, salt, from, bounty.id), from);
-    setStatus('Commit sent. Waiting for Fuji…');
+    setStatus(`Commit sent. Waiting for ${network.short}…`);
     await publicClient.waitForTransactionReceipt({ hash });
+    if (!network.testnet) downloadBackup();
     setStatus(`Committed ✓ — only a hash is on-chain. Now Reveal & claim. ${txLink(hash)}`, true);
   });
 }
 
 async function revealBounty(bountyId: bigint): Promise<void> {
   await withTx('Reveal', async (from) => {
-    const secret = loadSolverSecret(from, bountyId);
+    const secret = loadSolverSecret(from, bountyId, network.chainId);
     if (!secret) throw new Error('No saved answer for this bounty in this browser');
     const commitment = await readCommitment(bountyId, from);
     if (commitment.blockNumber === 0n) throw new Error('Commit first');
@@ -333,7 +346,7 @@ createForm.addEventListener('submit', (event) => {
   const moves = [...state.history];
   const levelId = state.levelId;
   const custom = levelId === DRAFT_ID && testedRows ? encodeRows(testedRows) : null;
-  if (!custom && !isPreset(levelId)) return;
+  if (!custom && (!isPreset(levelId) || !allowsPresetBounties(network))) return;
   void withTx('Create bounty', async (from) => {
     const reward = parseEther(rewardInput.value || '0');
     if (reward <= 0n) throw new Error('Reward must be above 0');
@@ -349,7 +362,8 @@ createForm.addEventListener('submit', (event) => {
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     const id = bountyIdFromReceipt(receipt);
     await refreshBounties();
-    setStatus(`Bounty #${id ?? '?'} is live with ${formatEther(reward)} AVAX. ${txLink(hash)}`, true);
+    if (!network.testnet) downloadBackup();
+    setStatus(`Bounty #${id ?? '?'} is live with ${formatEther(reward)} AVAX. ${txLink(hash)} — ${network.testnet ? 'tip: “Back up answers” keeps your reclaim key safe.' : 'answer backup downloaded, keep it safe.'}`, true);
   });
 });
 
@@ -389,7 +403,7 @@ function renderBountyList(): void {
         if (!playBounty(bounty)) return;
         document.querySelector('#play')?.scrollIntoView();
       }, activeBountyId === bounty.id || (bounty.levelId === 0 && !custom)));
-      const secret = account ? loadSolverSecret(account, bounty.id) : null;
+      const secret = account ? loadSolverSecret(account, bounty.id, network.chainId) : null;
       if (secret && activeBountyId !== bounty.id) card.append(button('Reveal & claim', 'btn-gold', () => void revealBounty(bounty.id)));
     }
     if (phase === 'expired' && mine) {
@@ -524,7 +538,7 @@ async function refreshBounties(): Promise<void> {
     const notDeployed = errorMessage(error).includes('bountyCount');
     bountyList.innerHTML = notDeployed
       ? '<p class="empty">This contract has no bounty support yet. Deploy the new SokoChain.sol and set VITE_CONTRACT_ADDRESS.</p>'
-      : `<p class="empty">Couldn’t read bounties from Fuji (${errorMessage(error)}).</p>`;
+      : `<p class="empty">Couldn’t read bounties from ${network.label} (${errorMessage(error)}).</p>`;
   }
 }
 
@@ -563,7 +577,7 @@ submitButton.addEventListener('click', () => void withTx('Log score', async (fro
   setStatus('Waiting for Avalanche confirmation…');
   await publicClient.waitForTransactionReceipt({ hash });
   await refreshScores();
-  setStatus(`Score saved on Fuji. ${txLink(hash)}`, true);
+  setStatus(`Score saved on ${network.label}. ${txLink(hash)}`, true);
 }));
 
 const sharedParameters = new URLSearchParams(location.search);
@@ -591,6 +605,85 @@ if (import.meta.env.DEV) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Answer backup
+// ---------------------------------------------------------------------------
+
+function downloadBackup(): void {
+  const url = URL.createObjectURL(new Blob([exportSecrets()], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `sokorescue-answers-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$('#backup-export').addEventListener('click', downloadBackup);
+
+$<HTMLInputElement>('#backup-import').addEventListener('change', async (event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  try {
+    const added = importSecrets(await file.text());
+    setStatus(added ? `Restored ${added} answer${added === 1 ? '' : 's'} from backup.` : 'Backup read: every answer in it was already here.');
+    renderBountyList();
+    renderBountyActions();
+  } catch (error) {
+    setStatus(`Restore failed: ${errorMessage(error)}`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Network selector
+// ---------------------------------------------------------------------------
+
+function renderNetwork(): void {
+  networkSelect.replaceChildren(...Object.values(NETWORKS).map((option) => {
+    const element = document.createElement('option');
+    element.value = option.id;
+    const compact = window.matchMedia('(max-width: 640px)').matches;
+    element.textContent = compact ? option.short : option.contract ? option.label : `${option.short} (soon)`;
+    if (!option.contract) element.title = 'Mainnet contract not deployed yet';
+    element.disabled = !option.contract;
+    element.selected = option.id === network.id;
+    return element;
+  }));
+  document.body.classList.toggle('net-mainnet', !network.testnet);
+  networkEyebrow.textContent = network.testnet ? 'Avalanche Fuji testnet' : 'Avalanche C-Chain · real AVAX';
+  mainnetWarn.hidden = network.testnet;
+  $('.create-hint').textContent = allowsPresetBounties(network)
+    ? 'Solve a preset district or test-play your workshop map, then post.'
+    : 'Mainnet: preset districts have public solutions, so bounties use workshop maps only.';
+  if (!account) walletLabel.textContent = '';
+}
+
+function applyNetwork(id: NetworkId): void {
+  setNetwork(id);
+  localStorage.setItem(NETWORK_KEY, id);
+  const url = new URL(location.href);
+  if (id === 'fuji') url.searchParams.delete('network');
+  else url.searchParams.set('network', id);
+  history.replaceState(null, '', url);
+  // Bounty ids and maps are per contract: drop everything from the previous network.
+  bounties = [];
+  customBountyLevels.clear();
+  if (activeBountyId !== null || state.levelId >= 1000) loadLevel(1, null);
+  bountyList.innerHTML = `<p class="empty">Loading bounties from ${network.label}…</p>`;
+  renderNetwork();
+  render();
+  void refreshBounties();
+  void refreshScores();
+}
+
+networkSelect.addEventListener('change', () => applyNetwork(networkSelect.value as NetworkId));
+window.matchMedia('(max-width: 640px)').addEventListener('change', renderNetwork);
+
+setNetwork(resolveNetwork(NETWORKS, localStorage.getItem(NETWORK_KEY), new URLSearchParams(location.search).get('network')));
+renderNetwork();
 renderEditor();
 render();
 void refreshBounties();
