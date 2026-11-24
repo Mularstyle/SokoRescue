@@ -1,0 +1,6 @@
+# Vercel CLI uploads from the repo root (project Root Directory = SokoChain/sokochain-source)
+**/node_modules
+**/.npm-cache
+**/dist
+**/.env
+**/*.zip
