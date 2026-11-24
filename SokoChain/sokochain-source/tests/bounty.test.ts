@@ -63,6 +63,6 @@ describe('frontend ABI', () => {
     const compiledSigs = new Set(compiled.filter((item) => item.type !== 'constructor').map(sig));
     for (const item of ABI) expect(compiledSigs, sig(item)).toContain(sig(item));
     const names = ABI.map((item) => item.name);
-    expect(names).toEqual(expect.arrayContaining(['createBounty', 'commit', 'reveal', 'reclaim', 'getBounty', 'bountyCount', 'commitments', 'BountyCreated']));
+    expect(names).toEqual(expect.arrayContaining(['createBounty', 'createCustomBounty', 'getBountyLevel', 'commit', 'reveal', 'reclaim', 'getBounty', 'bountyCount', 'commitments', 'BountyCreated']));
   });
 });

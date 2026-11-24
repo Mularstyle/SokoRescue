@@ -1,6 +1,7 @@
 import { createPublicClient, createWalletClient, custom, http, parseEventLogs, type Hex, type TransactionReceipt } from 'viem';
 import { avalancheFuji } from 'viem/chains';
 import type { Move } from './game';
+import type { OnchainLevel } from './levelCodec';
 
 export const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS as `0x${string}` | undefined;
 
@@ -12,6 +13,21 @@ export const ABI = [
   { type: 'function', name: 'validSubmissions', stateMutability: 'view', inputs: [{ name: '', type: 'uint8' }], outputs: [{ name: '', type: 'uint256' }] },
   // Puzzle Bounty
   { type: 'function', name: 'createBounty', stateMutability: 'payable', inputs: [{ name: 'levelId', type: 'uint8' }, { name: 'creatorCommit', type: 'bytes32' }, { name: 'deadline', type: 'uint64' }], outputs: [{ name: 'bountyId', type: 'uint256' }] },
+  {
+    type: 'function', name: 'createCustomBounty', stateMutability: 'payable',
+    inputs: [{ name: 'level', type: 'tuple', components: [
+        { name: 'floor', type: 'uint128' }, { name: 'goals', type: 'uint128' }, { name: 'boxes', type: 'uint128' },
+        { name: 'width', type: 'uint8' }, { name: 'height', type: 'uint8' }, { name: 'player', type: 'uint8' },
+      ] }, { name: 'creatorCommit', type: 'bytes32' }, { name: 'deadline', type: 'uint64' }],
+    outputs: [{ name: 'bountyId', type: 'uint256' }],
+  },
+  {
+    type: 'function', name: 'getBountyLevel', stateMutability: 'view', inputs: [{ name: 'bountyId', type: 'uint256' }],
+    outputs: [{ name: '', type: 'tuple', components: [
+        { name: 'floor', type: 'uint128' }, { name: 'goals', type: 'uint128' }, { name: 'boxes', type: 'uint128' },
+        { name: 'width', type: 'uint8' }, { name: 'height', type: 'uint8' }, { name: 'player', type: 'uint8' },
+      ] }],
+  },
   { type: 'function', name: 'commit', stateMutability: 'nonpayable', inputs: [{ name: 'bountyId', type: 'uint256' }, { name: 'commitHash', type: 'bytes32' }], outputs: [] },
   { type: 'function', name: 'reveal', stateMutability: 'nonpayable', inputs: [{ name: 'bountyId', type: 'uint256' }, { name: 'moves', type: 'uint8[]' }, { name: 'salt', type: 'bytes32' }], outputs: [] },
   { type: 'function', name: 'reclaim', stateMutability: 'nonpayable', inputs: [{ name: 'bountyId', type: 'uint256' }, { name: 'moves', type: 'uint8[]' }, { name: 'salt', type: 'bytes32' }], outputs: [] },
@@ -106,6 +122,14 @@ export async function chainTime(): Promise<bigint> {
 
 export async function createBounty(levelId: number, creatorCommit: Hex, deadline: bigint, reward: bigint, account: Hex): Promise<Hex> {
   return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'createBounty', args: [levelId, creatorCommit, deadline], value: reward });
+}
+
+export async function createCustomBounty(level: OnchainLevel, creatorCommit: Hex, deadline: bigint, reward: bigint, account: Hex): Promise<Hex> {
+  return walletClient().writeContract({ account, address: requireContractAddress(), abi: ABI, functionName: 'createCustomBounty', args: [level, creatorCommit, deadline], value: reward });
+}
+
+export async function readBountyLevel(bountyId: bigint): Promise<OnchainLevel> {
+  return publicClient.readContract({ address: requireContractAddress(), abi: ABI, functionName: 'getBountyLevel', args: [bountyId] });
 }
 
 export async function commitAnswer(bountyId: bigint, commitHash: Hex, account: Hex): Promise<Hex> {

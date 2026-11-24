@@ -8,9 +8,12 @@ export function solverCommitHash(moves: readonly number[], salt: Hex, solver: He
   return keccak256(encodeAbiParameters(COMMIT_PARAMS, [[...moves], salt, solver, bountyId]));
 }
 
-/** keccak256(abi.encode(moves, salt, creator, levelId)) — creator's proof the level is solvable. */
-export function creatorCommitHash(moves: readonly number[], salt: Hex, creator: Hex, levelId: number): Hex {
-  return keccak256(encodeAbiParameters(COMMIT_PARAMS, [[...moves], salt, creator, BigInt(levelId)]));
+/**
+ * keccak256(abi.encode(moves, salt, creator, levelKey)) — creator's proof the level is solvable.
+ * levelKey is the preset levelId, or customLevelKey(level) for a custom map.
+ */
+export function creatorCommitHash(moves: readonly number[], salt: Hex, creator: Hex, levelKey: number | bigint): Hex {
+  return keccak256(encodeAbiParameters(COMMIT_PARAMS, [[...moves], salt, creator, BigInt(levelKey)]));
 }
 
 // ---------------------------------------------------------------------------

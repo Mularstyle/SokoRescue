@@ -3,7 +3,9 @@ import '@fontsource/silkscreen';
 import '@fontsource/vt323';
 import './style.css';
 import { formatEther, parseEther, type Hex } from 'viem';
-import { LEVELS, applyMove, createInitialState, getLevel, isWalkable, samePosition, type GameState, type Move } from './game';
+import { LEVELS, applyMove, createInitialState, getLevel, isWalkable, registerLevel, samePosition, type GameState, type Move } from './game';
+import { customLevelKey, decodeLevel, encodeRows, type OnchainLevel } from './levelCodec';
+import { blankMap, describeProblem, paint, resize, type Tool } from './editor';
 import {
   EXPLORER_TX,
   bountyIdFromReceipt,
@@ -11,8 +13,10 @@ import {
   commitAnswer,
   connectWallet,
   createBounty,
+  createCustomBounty,
   listBounties,
   publicClient,
+  readBountyLevel,
   readCommitment,
   readScores,
   reclaimBounty,
@@ -60,6 +64,40 @@ const createForm = $<HTMLFormElement>('#create-bounty');
 const createButton = $<HTMLButtonElement>('#create-bounty-btn');
 const createLevel = $('#create-level');
 const createLevelName = $('#create-level-name');
+const createLevelKind = $('#create-level-kind');
+const editor = $<HTMLDivElement>('#editor');
+const editorStatus = $('#editor-status');
+const editorWidth = $<HTMLInputElement>('#editor-width');
+const editorHeight = $<HTMLInputElement>('#editor-height');
+
+// Level ids: 1..8 presets, DRAFT_ID = workshop map, 1000 + bountyId = custom bounty map.
+const DRAFT_ID = 900;
+const bountyLevelId = (bountyId: bigint) => 1000 + Number(bountyId);
+const isPreset = (levelId: number) => levelId >= 1 && levelId <= 8;
+const customBountyLevels = new Map<bigint, OnchainLevel>();
+const DRAFT_KEY = 'sokorescue:draft';
+const SAMPLE_MAP = [
+  '##########',
+  '#        #',
+  '# @ $  . #',
+  '#        #',
+  '#   $  . #',
+  '#        #',
+  '#  $   . #',
+  '#        #',
+  '#        #',
+  '##########',
+];
+let draftRows: string[] = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null');
+    return Array.isArray(saved) && saved.length ? saved : SAMPLE_MAP;
+  } catch {
+    return SAMPLE_MAP;
+  }
+})();
+let testedRows: string[] | null = null;
+let tool: Tool = 'wall';
 const rewardInput = $<HTMLInputElement>('#bounty-reward');
 const hoursInput = $<HTMLInputElement>('#bounty-hours');
 
@@ -178,17 +216,21 @@ function render(): void {
   board.replaceChildren(...tiles);
   moveCount.textContent = String(state.moves);
   submitButton.disabled = !state.solved;
+  const label = isPreset(state.levelId) ? `District ${state.levelId} · ${level.name}` : level.name;
   if (!busy) {
     setStatus(state.solved
-      ? `District ${state.levelId} secured in ${state.moves} moves!`
-      : `District ${state.levelId} · ${level.name}: push every crate onto a life ring.`);
+      ? `${label} secured in ${state.moves} moves!`
+      : `${label}: push every crate onto a life ring.`);
   }
-  createLevel.textContent = String(state.levelId);
+  const postable = activeBountyId === null && (isPreset(state.levelId) || state.levelId === DRAFT_ID);
+  createLevelKind.textContent = isPreset(state.levelId) ? 'District' : 'Map';
+  createLevel.textContent = isPreset(state.levelId) ? String(state.levelId) : `${level.width}×${level.height}`;
   createLevelName.textContent = level.name;
-  createButton.disabled = !state.solved || activeBountyId !== null;
-  createButton.textContent = activeBountyId !== null
+  createButton.disabled = !state.solved || !postable;
+  createButton.textContent = !postable
     ? 'Leave bounty mode to post'
-    : state.solved ? `Post bounty on district ${state.levelId}` : 'Solve this district first';
+    : !state.solved ? 'Solve this map first'
+    : state.levelId === DRAFT_ID ? 'Post bounty on your map' : `Post bounty on district ${state.levelId}`;
   renderLevelPicker();
   renderActiveBanner();
   renderBountyActions();
@@ -290,15 +332,19 @@ createForm.addEventListener('submit', (event) => {
   if (!state.solved || activeBountyId !== null) return;
   const moves = [...state.history];
   const levelId = state.levelId;
+  const custom = levelId === DRAFT_ID && testedRows ? encodeRows(testedRows) : null;
+  if (!custom && !isPreset(levelId)) return;
   void withTx('Create bounty', async (from) => {
     const reward = parseEther(rewardInput.value || '0');
     if (reward <= 0n) throw new Error('Reward must be above 0');
     const hours = Math.max(1, Math.min(720, Number(hoursInput.value) || 24));
     const deadline = (await chainTime()) + BigInt(hours * 3600);
     const salt = randomSalt();
-    const commit = creatorCommitHash(moves, salt, from, levelId);
-    saveCreatorSecret(commit, { levelId, moves, salt });
-    const hash = await createBounty(levelId, commit, deadline, reward, from);
+    const commit = creatorCommitHash(moves, salt, from, custom ? customLevelKey(custom) : levelId);
+    saveCreatorSecret(commit, { levelId: custom ? 0 : levelId, moves, salt });
+    const hash = custom
+      ? await createCustomBounty(custom, commit, deadline, reward, from)
+      : await createBounty(levelId, commit, deadline, reward, from);
     setStatus('Locking AVAX in escrow…');
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
     const id = bountyIdFromReceipt(receipt);
@@ -328,18 +374,21 @@ function renderBountyList(): void {
     const phase = bountyStatus(bounty, now);
     const card = document.createElement('article');
     card.className = `bounty-card px-box ${phase}`;
-    const level = getLevel(bounty.levelId);
+    const custom = bounty.levelId === 0 ? customBountyLevels.get(bounty.id) : undefined;
+    const where = custom
+      ? `Custom map <b>${custom.width}×${custom.height}</b> · ${decodeLevel(custom, 0, '').boxes.length} crates`
+      : bounty.levelId === 0 ? 'Custom map' : `District <b>${bounty.levelId} · ${getLevel(bounty.levelId).name}</b>`;
     const mine = sameAddress(bounty.creator, account);
     card.innerHTML = `
       <div class="bounty-top"><span class="bounty-id">#${bounty.id}</span><span class="badge ${phase}">${phase}</span></div>
       <div class="bounty-reward">${formatEther(bounty.reward)} AVAX</div>
-      <p class="bounty-meta">District <b>${level.id} · ${level.name}</b></p>
+      <p class="bounty-meta">${where}</p>
       <p class="bounty-meta">${phase === 'solved' ? `Won by <b>${short(bounty.winner)}</b>` : phase === 'open' ? `<b>${formatRemaining(bounty.deadline)}</b>` : 'Deadline passed'} · by ${mine ? '<b>you</b>' : short(bounty.creator)}</p>`;
     if (phase === 'open') {
       card.append(button(activeBountyId === bounty.id ? 'Playing…' : 'Play bounty', 'btn-red', () => {
-        loadLevel(bounty.levelId, bounty.id);
+        if (!playBounty(bounty)) return;
         document.querySelector('#play')?.scrollIntoView();
-      }, activeBountyId === bounty.id));
+      }, activeBountyId === bounty.id || (bounty.levelId === 0 && !custom)));
       const secret = account ? loadSolverSecret(account, bounty.id) : null;
       if (secret && activeBountyId !== bounty.id) card.append(button('Reveal & claim', 'btn-gold', () => void revealBounty(bounty.id)));
     }
@@ -351,9 +400,121 @@ function renderBountyList(): void {
   }));
 }
 
+/** Load the bounty's map (preset or custom) into the game in bounty mode. */
+function playBounty(bounty: OnchainBounty): boolean {
+  if (bounty.levelId !== 0) {
+    loadLevel(bounty.levelId, bounty.id);
+    return true;
+  }
+  const level = customBountyLevels.get(bounty.id);
+  if (!level) return false;
+  const id = bountyLevelId(bounty.id);
+  registerLevel(decodeLevel(level, id, `Custom bounty #${bounty.id}`));
+  loadLevel(id, bounty.id);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Map workshop
+// ---------------------------------------------------------------------------
+
+function saveDraft(): void {
+  localStorage.setItem(DRAFT_KEY, JSON.stringify(draftRows));
+}
+
+function renderEditor(): void {
+  const width = draftRows[0].length;
+  editor.style.gridTemplateColumns = `repeat(${width}, var(--tile))`;
+  editorWidth.value = String(width);
+  editorHeight.value = String(draftRows.length);
+  const tiles: HTMLElement[] = [];
+  draftRows.forEach((row, y) => {
+    [...row].forEach((cell, x) => {
+      const tile = document.createElement('div');
+      tile.className = floodTileClasses({
+        blocked: cell === '#',
+        goal: cell === '.' || cell === '*' || cell === '+',
+        box: cell === '$' || cell === '*',
+        player: cell === '@' || cell === '+',
+      }).join(' ');
+      tile.dataset.x = String(x);
+      tile.dataset.y = String(y);
+      tiles.push(tile);
+    });
+  });
+  editor.replaceChildren(...tiles);
+  const problem = describeProblem(draftRows);
+  editorStatus.textContent = problem ?? 'Map is valid. Test play it, solve it, then post a bounty.';
+  editorStatus.classList.toggle('bad', !!problem);
+  document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((element) => {
+    element.classList.toggle('active', element.dataset.tool === tool);
+    element.setAttribute('aria-pressed', String(element.dataset.tool === tool));
+  });
+}
+
+function paintAt(target: EventTarget | null): void {
+  if (!(target instanceof HTMLElement) || target.dataset.x === undefined) return;
+  const next = paint(draftRows, Number(target.dataset.x), Number(target.dataset.y), tool);
+  if (next.join('|') === draftRows.join('|')) return;
+  draftRows = next;
+  saveDraft();
+  renderEditor();
+}
+
+let painting = false;
+editor.addEventListener('pointerdown', (event) => {
+  painting = tool !== 'boat' && tool !== 'ring';
+  paintAt(event.target);
+});
+editor.addEventListener('pointerover', (event) => {
+  if (painting) paintAt(event.target);
+});
+window.addEventListener('pointerup', () => {
+  painting = false;
+});
+
+document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((element) => {
+  element.addEventListener('click', () => {
+    tool = element.dataset.tool as Tool;
+    renderEditor();
+  });
+});
+
+function onResize(): void {
+  const width = Math.max(3, Math.min(10, Number(editorWidth.value) || 10));
+  const height = Math.max(3, Math.min(10, Number(editorHeight.value) || 10));
+  draftRows = resize(draftRows, width, height);
+  saveDraft();
+  renderEditor();
+}
+editorWidth.addEventListener('change', onResize);
+editorHeight.addEventListener('change', onResize);
+
+$('#editor-clear').addEventListener('click', () => {
+  draftRows = blankMap(Number(editorWidth.value) || 10, Number(editorHeight.value) || 10);
+  saveDraft();
+  renderEditor();
+});
+
+$('#editor-test').addEventListener('click', () => {
+  const problem = describeProblem(draftRows);
+  if (problem) {
+    editorStatus.textContent = problem;
+    editorStatus.classList.add('bad');
+    return;
+  }
+  testedRows = [...draftRows];
+  registerLevel(decodeLevel(encodeRows(testedRows), DRAFT_ID, 'Your workshop map'));
+  loadLevel(DRAFT_ID, null);
+  document.querySelector('#play')?.scrollIntoView();
+});
+
 async function refreshBounties(): Promise<void> {
   try {
     [bounties, now] = await Promise.all([listBounties(), chainTime()]);
+    await Promise.all(bounties
+      .filter((bounty) => bounty.levelId === 0 && !customBountyLevels.has(bounty.id))
+      .map(async (bounty) => customBountyLevels.set(bounty.id, await readBountyLevel(bounty.id))));
     renderBountyList();
     renderLevelPicker();
     renderActiveBanner();
@@ -430,6 +591,7 @@ if (import.meta.env.DEV) {
   };
 }
 
+renderEditor();
 render();
 void refreshBounties();
 setInterval(() => {

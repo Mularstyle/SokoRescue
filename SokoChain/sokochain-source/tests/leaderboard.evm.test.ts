@@ -34,8 +34,8 @@ describe('submitSolution on EVM', () => {
     expect(res.error).toBe(reason);
   });
 
-  it('rejects more than 128 moves', async () => {
-    const res = await chain.call(alice, 'submitSolution', [1, new Array(129).fill(0)]);
+  it('rejects more than 400 moves', async () => {
+    const res = await chain.call(alice, 'submitSolution', [1, new Array(401).fill(0)]);
     expect(res).toMatchObject({ ok: false, error: 'Too many moves' });
   });
 });

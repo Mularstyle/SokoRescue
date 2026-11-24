@@ -4,6 +4,9 @@ import type { Address } from '@ethereumjs/util';
 import type { Hex } from 'viem';
 import { CANONICAL, Chain, route } from './helpers/evm';
 import { creatorCommitHash, solverCommitHash } from '../src/bounty';
+import { customLevelKey, encodeDefinition, encodeRows, type OnchainLevel } from '../src/levelCodec';
+import { LEVELS } from '../src/game';
+import { TEN_BY_TEN, TEN_BY_TEN_ROUTE } from './levelCodec.test';
 
 const AVAX = 10n ** 18n;
 const REWARD = 1n * AVAX;
@@ -231,6 +234,76 @@ describe('Puzzle Bounty', () => {
       chain.mine(HOUR + 1n);
       const res = await chain.call(creator, 'reclaim', [1n, SOLUTION, SALT_CREATOR]);
       expect(res).toMatchObject({ ok: false, error: 'Already solved' });
+    });
+  });
+
+  describe('custom maps', () => {
+    const MAP = encodeRows(TEN_BY_TEN);
+    const MAP_ROUTE = route(TEN_BY_TEN_ROUTE);
+
+    async function createCustom(level: OnchainLevel = MAP, moves = MAP_ROUTE) {
+      const commit = creatorCommitHash(moves, SALT_CREATOR, hex(creator), customLevelKey(level));
+      return chain.call(creator, 'createCustomBounty', [level, commit, deadline], REWARD);
+    }
+
+    it('stores a 10x10 map and exposes it through getBountyLevel', async () => {
+      const res = await createCustom();
+      expect(res.ok, res.error).toBe(true);
+      expect(res.logs[0]).toMatchObject({ eventName: 'BountyCreated', args: { bountyId: 1n, levelId: 0, reward: REWARD } });
+      expect(await getBounty(1n)).toMatchObject({ levelId: 0, reward: REWARD });
+      expect(await chain.read('getBountyLevel', [1n])).toEqual(MAP);
+    });
+
+    it('pays a solver who reveals a valid route for the custom map', async () => {
+      await createCustom();
+      await commitAndMine(solver, MAP_ROUTE, SALT_SOLVER);
+      const before = await chain.balance(solver);
+      const res = await chain.call(solver, 'reveal', [1n, MAP_ROUTE, SALT_SOLVER]);
+      expect(res.ok, res.error).toBe(true);
+      expect(await chain.balance(solver)).toBe(before + REWARD);
+    });
+
+    it('rejects a preset solution on a custom map', async () => {
+      await createCustom();
+      await commitAndMine(solver, SOLUTION, SALT_SOLVER);
+      const res = await chain.call(solver, 'reveal', [1n, SOLUTION, SALT_SOLVER]);
+      expect(res.ok).toBe(false);
+    });
+
+    it('lets the creator reclaim with the committed custom solution', async () => {
+      await createCustom();
+      chain.mine(HOUR + 1n);
+      const res = await chain.call(creator, 'reclaim', [1n, MAP_ROUTE, SALT_CREATOR]);
+      expect(res.ok, res.error).toBe(true);
+    });
+
+    it('rejects a creator commit made for a different map', async () => {
+      const other = encodeRows(TEN_BY_TEN.map((row, y) => (y === 8 ? '#   #    #' : row)));
+      const commit = creatorCommitHash(MAP_ROUTE, SALT_CREATOR, hex(creator), customLevelKey(other));
+      await chain.call(creator, 'createCustomBounty', [MAP, commit, deadline], REWARD);
+      chain.mine(HOUR + 1n);
+      const res = await chain.call(creator, 'reclaim', [1n, MAP_ROUTE, SALT_CREATOR]);
+      expect(res).toMatchObject({ ok: false, error: 'Bad reveal' });
+    });
+
+    it.each([
+      ['too wide', { ...MAP, width: 11 }, 'Bad size'],
+      ['floor outside the grid', { ...MAP, floor: MAP.floor | (1n << 100n) }, 'Bad floor'],
+      ['player on a wall', { ...MAP, player: 0 }, 'Bad player'],
+      ['box and goal counts differ', { ...MAP, goals: 1n << 27n }, 'Bad boxes'],
+      ['already solved', { ...MAP, boxes: MAP.goals }, 'Already solved'],
+    ])('rejects an invalid map: %s', async (_name, level, reason) => {
+      const res = await createCustom(level as OnchainLevel);
+      expect(res).toMatchObject({ ok: false, error: reason });
+    });
+
+    it('agrees with the TS codec on every preset level', async () => {
+      for (const definition of LEVELS) {
+        const commit = creatorCommitHash(route(CANONICAL[definition.id]), SALT_CREATOR, hex(creator), definition.id);
+        expect((await chain.call(creator, 'createBounty', [definition.id, commit, deadline], 1n)).ok).toBe(true);
+        const id = (await chain.read('bountyCount')) as bigint;
+        expect(await chain.read('getBountyLevel', [id])).toEqual(encodeDefinition(definition));
+      }
     });
   });
 });

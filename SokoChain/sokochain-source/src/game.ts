@@ -70,8 +70,15 @@ const DELTAS: Record<Move, Position> = {
   3: { x: -1, y: 0 },
 };
 
+const customLevels = new Map<number, LevelDefinition>();
+
+/** Make a non-preset level (e.g. a custom bounty map) playable under its id. */
+export function registerLevel(level: LevelDefinition): void {
+  customLevels.set(level.id, level);
+}
+
 export function getLevel(levelId: number): LevelDefinition {
-  const level = LEVELS.find((candidate) => candidate.id === levelId);
+  const level = LEVELS.find((candidate) => candidate.id === levelId) ?? customLevels.get(levelId);
   if (!level) throw new Error('Invalid level');
   return level;
 }

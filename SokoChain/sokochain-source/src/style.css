@@ -343,6 +343,42 @@ h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; 
 .bounty-meta b { color: var(--bone); font-weight: 400; }
 .bounty-card .btn { width: 100%; }
 
+/* ---------- map workshop ---------- */
+.workshop { margin-bottom: 64px; padding: 40px 24px 24px; }
+.workshop-grid { display: grid; grid-template-columns: auto 1fr; gap: 40px; align-items: start; }
+.editor-frame { padding: 12px; background: var(--void); box-shadow: inset 0 0 0 4px var(--night); }
+.editor { --tile: 40px; display: grid; user-select: none; touch-action: none; cursor: crosshair; }
+.editor .tile:hover { outline: 4px solid var(--glow); outline-offset: -4px; z-index: 4; }
+.workshop-side { display: grid; gap: 20px; }
+.workshop-lead { margin: 0; color: #c9b2ab; font-size: 22px; }
+.tools { display: flex; flex-wrap: wrap; gap: 12px; }
+.tool {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 0; cursor: pointer;
+  background: var(--night); color: var(--ash); font-family: var(--label); font-size: 16px; text-transform: uppercase;
+  box-shadow: 0 -4px 0 0 var(--deep), 0 4px 0 0 var(--deep), -4px 0 0 0 var(--deep), 4px 0 0 0 var(--deep);
+}
+.tool:hover { color: var(--bone); }
+.tool.active { background: var(--red); color: var(--bone); box-shadow: 0 -4px 0 0 var(--hot), 0 4px 0 0 var(--hot), -4px 0 0 0 var(--hot), 4px 0 0 0 var(--hot); }
+.tool-icon { width: 24px; height: 24px; image-rendering: pixelated; background-size: 100% 100%; }
+.tool-icon.wall { background-image: var(--spr-wall); }
+.tool-icon.water { background-image: var(--spr-water); }
+.tool-icon.crate { background-image: var(--spr-crate), var(--spr-water); }
+.tool-icon.ring { background-image: var(--spr-buoy), var(--spr-water); }
+.tool-icon.boat { background-image: var(--spr-boat), var(--spr-water); }
+.size-row { display: flex; gap: 20px; }
+.size-row label { display: grid; gap: 6px; font-family: var(--label); font-size: 16px; color: var(--ash); text-transform: uppercase; }
+.size-row input, .create-card input { width: 100%; }
+.size-row input {
+  width: 96px; padding: 6px 10px; border: 0; background: var(--void); color: var(--bone);
+  font-family: var(--body); font-size: 24px; box-shadow: inset 0 0 0 4px var(--deep);
+}
+.size-row input:focus { outline: none; box-shadow: inset 0 0 0 4px var(--hot); }
+.editor-status { margin: 0; min-height: 28px; font-size: 22px; color: var(--glow); }
+.editor-status.bad { color: var(--coral); }
+.workshop-actions { display: flex; gap: 24px; align-items: center; }
+.create-hint { margin: 0; }
+.bounty-tag { margin-left: 8px; padding: 2px 6px; background: var(--glow); color: var(--ink); font-family: var(--label); font-size: 16px; }
+
 /* ---------- how it works ---------- */
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin: 0; padding: 0; list-style: none; }
 .step { padding: 28px 24px; }
@@ -385,6 +421,7 @@ h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; 
   .panel, .create-card { width: min(100%, 520px); }
   .bounty-board { width: 100%; }
   .steps { grid-template-columns: 1fr; }
+  .workshop-grid { grid-template-columns: 1fr; justify-items: center; }
   .topnav { display: none; }
 }
 @media (max-width: 640px) {
@@ -398,6 +435,8 @@ h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; 
   .ghost-text { font-size: 48px; }
   .hero-boat { width: 128px; height: 56px; margin-left: -64px; }
   .section { padding-top: 96px; }
+  .editor { --tile: 24px; }
+  .workshop { padding-inline: 12px; }
   .level-select { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; padding: 8px 8px 16px; margin-inline: -16px; scroll-snap-type: x mandatory; }
   .level-button { flex: none; scroll-snap-align: start; }
   .wallet-label { display: none; }
