@@ -10,7 +10,7 @@ A flood-rescue puzzle game where every move matters. Steer the rescue boat, push
 
 SokoRescue was built at [Team1 Thailand — Codebase Hackathon: Chula Edition](https://build.avax.network/events/b6bc9762-afc9-416d-b21e-9795750663d1) and won the **Gaming Track**.
 
-**[Play on Vercel →](https://rescuesoko.vercel.app/)**
+**[Play on Vercel →](https://sokorescue.vercel.app/)**
 
 ![SokoRescue gameplay](SokoChain/sokochain-source/docs/images/gameplay.png)
 

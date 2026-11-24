@@ -10,7 +10,7 @@
 
 SokoRescue สร้างขึ้นในงาน [Team1 Thailand — Codebase Hackathon: Chula Edition](https://build.avax.network/events/b6bc9762-afc9-416d-b21e-9795750663d1) และได้รับรางวัลชนะเลิศ **Gaming Track**
 
-**[ลองเล่นบน Vercel →](https://rescuesoko.vercel.app/)**
+**[ลองเล่นบน Vercel →](https://sokorescue.vercel.app/)**
 
 ![หน้าเกม SokoRescue](SokoChain/sokochain-source/docs/images/gameplay.png)
 
