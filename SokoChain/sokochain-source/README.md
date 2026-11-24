@@ -73,3 +73,4 @@ Built with TypeScript, Vite, viem, Solidity, Core Wallet, and Avalanche Fuji.
 ## Credits
 
 Levels 7 and 8 are adapted from David W. Skinner's public-domain Microban puzzle collection.
+
