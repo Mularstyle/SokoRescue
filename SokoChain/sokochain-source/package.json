@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:demo": "vite --mode demo",
+    "build:demo": "tsc && vite build --mode demo --outDir dist-demo"
   },
   "dependencies": {
     "@fontsource/press-start-2p": "^5.3.0",
