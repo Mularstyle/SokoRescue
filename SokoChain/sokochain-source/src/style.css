@@ -364,6 +364,15 @@ h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; 
 .bounty-meta { margin: 0; color: var(--ash); font-size: 20px; }
 .bounty-meta b { color: var(--bone); font-weight: 400; }
 .bounty-card .btn { width: 100%; }
+.bounty-body { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.bounty-info { display: grid; gap: 10px; min-width: 0; }
+.bounty-thumb { --thumb-tile: 11px; display: grid; flex: none; image-rendering: pixelated; box-shadow: 0 0 0 3px var(--deep), 5px 5px 0 3px #000; }
+.bounty-thumb i { width: var(--thumb-tile); height: var(--thumb-tile); background: var(--spr-water) 0 0 / 100% 100%; }
+.bounty-thumb i.w { background-image: var(--spr-wall); }
+.bounty-thumb i.g { background-image: var(--spr-buoy), var(--spr-water); }
+.bounty-thumb i.b { background-image: var(--spr-crate), var(--spr-water); }
+.bounty-thumb i.bg { background-image: var(--spr-crateGoal), var(--spr-water); }
+.bounty-thumb i.p, .bounty-thumb i.pg { background-image: var(--spr-boat), var(--spr-water); }
 
 /* ---------- map workshop ---------- */
 .workshop { margin-bottom: 64px; padding: 40px 24px 24px; }

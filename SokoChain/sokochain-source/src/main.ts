@@ -40,6 +40,7 @@ import {
   solverCommitHash,
 } from './bounty';
 import { installSprites } from './sprites';
+import { thumbElement } from './thumb';
 import { NETWORKS, allowsPresetBounties, resolveNetwork, type NetworkId } from './networks';
 import { floodTileClasses } from './theme';
 
@@ -395,9 +396,11 @@ function renderBountyList(): void {
     const mine = sameAddress(bounty.creator, account);
     card.innerHTML = `
       <div class="bounty-top"><span class="bounty-id">#${bounty.id}</span><span class="badge ${phase}">${phase}</span></div>
-      <div class="bounty-reward">${formatEther(bounty.reward)} AVAX</div>
+      <div class="bounty-body"><div class="bounty-info"><div class="bounty-reward">${formatEther(bounty.reward)} AVAX</div>
       <p class="bounty-meta">${where}</p>
-      <p class="bounty-meta">${phase === 'solved' ? `Won by <b>${short(bounty.winner)}</b>` : phase === 'open' ? `<b>${formatRemaining(bounty.deadline)}</b>` : 'Deadline passed'} · by ${mine ? '<b>you</b>' : short(bounty.creator)}</p>`;
+      <p class="bounty-meta">${phase === 'solved' ? `Won by <b>${short(bounty.winner)}</b>` : phase === 'open' ? `<b>${formatRemaining(bounty.deadline)}</b>` : 'Deadline passed'} · by ${mine ? '<b>you</b>' : short(bounty.creator)}</p></div></div>`;
+    const thumbLevel = custom ? decodeLevel(custom, 0, '') : bounty.levelId > 0 ? getLevel(bounty.levelId) : null;
+    if (thumbLevel) card.querySelector('.bounty-body')!.append(thumbElement(thumbLevel));
     if (phase === 'open') {
       card.append(button(activeBountyId === bounty.id ? 'Playing…' : 'Play bounty', 'btn-red', () => {
         if (!playBounty(bounty)) return;
